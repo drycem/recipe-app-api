@@ -63,7 +63,7 @@ class PrivateRecipeApiTests(TestCase):
 
     def test_recipes_limited_to_user(self):
         """Test that recipes for the authenticated user are returned"""
-        user2 = get_user_model.objects.create_user(
+        user2 = get_user_model().objects.create_user(
             'other@drycem.com',
             'testpass123'
         )
