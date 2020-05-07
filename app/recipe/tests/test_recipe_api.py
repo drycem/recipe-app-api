@@ -46,7 +46,7 @@ class PrivateRecipeApiTests(TestCase):
         }
 
         defaults.update(params)
-        
+
         Recipe.objects.create(
             user=self.user,
             title='abc',
