@@ -45,7 +45,7 @@ class PrivateRecipeApiTests(TestCase):
             'price': 5.00
         }
 
-        defaults.update(params)
+        params.update(defaults)
         
         Recipe.objects.create(user=self.user, params)
 
