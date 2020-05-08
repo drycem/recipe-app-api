@@ -5,15 +5,43 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Recipe
+from core.models import Recipe, Tag, Ingredient
 
-from recipe.serializers import RecipeSerializer
+from recipe.serializers import RecipeSerializer, RecipeDetailSerializer
+
 
 RECIPES_URL = reverse('recipe:recipe-list')
 
 
+def detail_url(recipe_id):
+    """Return recipe detail URL"""
+    return reverse('recipe:recipe-detail', args=[recipe_id])
+
+
+def sample_tag(user, name='Main course'):
+    """Create and return a sample tag"""
+    return Tag.objects.create(user=user, name=name)
+
+
+def sample_ingredient(user, name='Cinnanon'):
+    """Create and return a sample ingredient"""
+    return Ingredient.objects.create(user=user, name=name)
+
+
+def sample_recipe(user, **params):
+    """Create and return a sample recipe"""
+    defaults = {
+        'title': 'Sample recipe',
+        'time_minutes': 10,
+        'price': 5.00
+    }
+    defaults.update(params)
+
+    return Recipe.objects.create(user=user, **defaults)
+
+
 class PublicRecipeApiTest(TestCase):
-    """Test the publicly available ingredients API"""
+    """Test the publicly available recipe API"""
 
     def setUp(self):
         self.client = APIClient()
@@ -34,25 +62,12 @@ class PrivateRecipeApiTests(TestCase):
             'test@drycem.com',
             'testpass'
         )
-
         self.client.force_authenticate(self.user)
 
-    def test_retrieve_recipe_list(self, **params):
+    def test_retrieve_recipe_list(self):
         """Test retrieving a list of recipes"""
-        defaults = {
-            'title': 'abc',
-            'time_minutes': 5,
-            'price': 5.00
-        }
-
-        defaults.update(params)
-
-        Recipe.objects.create(
-            user=self.user,
-            title='abc',
-            time_minutes=5,
-            price=6.00
-        )
+        sample_recipe(user=self.user)
+        sample_recipe(user=self.user)
 
         res = self.client.get(RECIPES_URL)
 
@@ -67,21 +82,26 @@ class PrivateRecipeApiTests(TestCase):
             'other@drycem.com',
             'testpass123'
         )
-        Recipe.objects.create(
-            user=user2,
-            title='abc',
-            time_minutes=5,
-            price=6.00
-        )
-        recipe = Recipe.objects.create(
-            user=self.user,
-            title='cde',
-            time_minutes=5,
-            price=7.00
-        )
+        sample_recipe(user=user2)
+        sample_recipe(user=self.user)
 
         res = self.client.get(RECIPES_URL)
 
+        recipes = Recipe.objects.filter(user=self.user)
+        serializer = RecipeSerializer(recipes, many=True)
+
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]['title'], recipe.title)
+        self.assertEqual(res.data, serializer.data)
+
+    def test_view_reicipe_detail(self):
+        """test viewing a recipe detail"""
+        recipe = sample_recipe(user=self.user)
+        recipe.tags.add(sample_tag(user=self.user))
+        recipe.ingredients.add(sample_ingredient(user=self.user,))
+
+        url = detail_url(recipe.id)
+        res = self.client.get(url)
+
+        serializer = RecipeDetailSerializer(recipe)
+        self.assertEqual(res.data, serializer.data)
